@@ -1268,8 +1268,8 @@ void tfa98xx_key2(struct tfa_device *tfa, int lock)
  */
 int tfa_calibrate(struct tfa_device *tfa)
 {
-	enum tfa_error ret;
-	enum tfa98xx_error error;
+	enum tfa_error ret = tfa_error_ok;
+	enum tfa98xx_error error = TFA98XX_ERROR_OK;
 
 	tfa->is_cold = 1;
 
