@@ -1387,6 +1387,7 @@ static int tfa98xx_run_calibration(struct tfa98xx *tfa98xx0)
 	struct tfa98xx *tfa98xx;
 	struct tfa_device *tfa;
 	enum tfa_error ret, cal_err = tfa_error_ok;
+	enum tfa98xx_error err = TFA98XX_ERROR_OK;
 	int idx, ndev = tfa98xx_device_count;
 	int cal_profile = 0;
 	u64 otc_val = 1; /* calibration once by default */
@@ -1405,8 +1406,8 @@ static int tfa98xx_run_calibration(struct tfa98xx *tfa98xx0)
 	}
 
 	/* EXT_TEMP */
-	ret = tfa98xx_read_reference_temp(&temp_val);
-	if (ret) {
+	err = tfa98xx_read_reference_temp(&temp_val);
+	if (err) {
 		pr_err("%s: error in reading reference temp\n",
 			__func__);
 		temp_val = DEFAULT_REF_TEMP; /* default */
@@ -6224,7 +6225,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int tfa98xx_i2c_remove(struct i2c_client *i2c)
+static void tfa98xx_i2c_remove(struct i2c_client *i2c)
 {
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
 
@@ -6256,8 +6257,6 @@ static int tfa98xx_i2c_remove(struct i2c_client *i2c)
 		tfa98xx_container = NULL;
 	}
 	mutex_unlock(&tfa98xx_mutex);
-
-	return 0;
 }
 
 static const struct i2c_device_id tfa98xx_i2c_id[] = {
