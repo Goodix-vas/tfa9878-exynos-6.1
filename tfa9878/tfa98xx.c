@@ -161,6 +161,26 @@ static const unsigned int index_to_rate[] = {
 	5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000
 };
 
+enum tfa_error tfa_convert_error_code(enum tfa98xx_error err)
+{
+	switch (err) {
+	case TFA98XX_ERROR_OK:
+		return tfa_error_ok;
+	case TFA98XX_ERROR_DEVICE:
+		return tfa_error_device;
+	case TFA98XX_ERROR_BAD_PARAMETER:
+		return tfa_error_bad_param;
+	case TFA98XX_ERROR_NO_CLOCK:
+		return tfa_error_noclock;
+	case TFA98XX_ERROR_STATE_TIMED_OUT:
+		return tfa_error_timeout;
+	case TFA98XX_ERROR_DSP_NOT_RUNNING:
+		return tfa_error_dsp;
+	default:
+		return tfa_error_other;
+	}
+}
+
 static inline char *_tfa_cont_profile_name
 (struct tfa98xx *tfa98xx, int prof_idx)
 {

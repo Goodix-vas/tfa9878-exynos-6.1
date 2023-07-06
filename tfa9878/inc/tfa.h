@@ -20,14 +20,15 @@ extern struct tfa_device **devs;
  * tfa error return codes
  */
 enum tfa_error {
-	tfa_error_ok,        /**< no error */
-	tfa_error_device,    /**< no response from device */
-	tfa_error_bad_param, /**< parameter no accepted */
-	tfa_error_noclock,   /**< required clock not present */
-	tfa_error_timeout,   /**< a timeout occurred */
-	tfa_error_dsp,       /**< a DSP error was returned */
-	tfa_error_container, /**< no or wrong container file */
-	tfa_error_max        /**< impossible value, max enum */
+	tfa_error_ok,        /* no error */
+	tfa_error_device,    /* no response from device */
+	tfa_error_bad_param, /* parameter no accepted */
+	tfa_error_noclock,   /* required clock not present */
+	tfa_error_timeout,   /* a timeout occurred */
+	tfa_error_dsp,       /* a DSP error was returned */
+	tfa_error_container, /* no or wrong container file */
+	tfa_error_other,     /* unclassified, in sync with tfa98xx_error */
+	tfa_error_max        /* impossible value, max enum */
 };
 
 enum tfa98xx_error tfa_write_filters(struct tfa_device *tfa, int prof_idx);

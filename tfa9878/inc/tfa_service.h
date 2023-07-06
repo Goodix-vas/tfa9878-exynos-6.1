@@ -173,6 +173,8 @@ enum tfa98xx_error {
 	TFA98XX_ERROR_OTHER = 1000
 };
 
+enum tfa_error tfa_convert_error_code(enum tfa98xx_error err);
+
 /*
  * Type containing all the possible msg returns DSP can give
  * TODO: move to tfa_dsp_fw.h

@@ -1268,16 +1268,17 @@ void tfa98xx_key2(struct tfa_device *tfa, int lock)
  */
 int tfa_calibrate(struct tfa_device *tfa)
 {
+	enum tfa_error ret;
 	enum tfa98xx_error error;
 
 	tfa->is_cold = 1;
 
 	/* clear mtpex */
-	error = tfa_dev_mtp_set(tfa, TFA_MTP_EX, 0);
-	if (error) {
-		pr_info("resetting MTPEX failed (%d)\n", error);
+	ret = tfa_dev_mtp_set(tfa, TFA_MTP_EX, 0);
+	if (ret) {
+		pr_info("resetting MTPEX failed (%d)\n", ret);
 		tfa->reset_mtpex = 1; /* suspend until TFA98xx is active */
-		return error;
+		return (int)ret;
 	}
 
 	/* set ACS/coldboot state */
@@ -1292,7 +1293,7 @@ int tfa_calibrate(struct tfa_device *tfa)
 	}
 
 	/* start tfa by playing */
-	return error;
+	return (int)error;
 }
 
 static short twos(short x)
@@ -3876,6 +3877,7 @@ enum tfa98xx_error tfa_wait_cal(struct tfa_device *tfa)
 void tfa_restore_after_cal(int index, int cal_err)
 {
 	enum tfa98xx_error err = TFA98XX_ERROR_OK;
+	enum tfa_error ret = tfa_error_ok;
 	struct tfa_device *tfa = tfa98xx_get_tfa_device_from_index(index);
 	struct tfa_device *ntfa;
 	int i;
@@ -3941,11 +3943,11 @@ void tfa_restore_after_cal(int index, int cal_err)
 				pr_info("%s: apply the whole profile setting at done\n",
 					__func__);
 
-				err = tfa_dev_switch_profile(ntfa,
+				ret = tfa_dev_switch_profile(ntfa,
 					ntfa->next_profile, ntfa->vstep);
-				if (err != TFA98XX_ERROR_OK)
+				if (ret != tfa_error_ok)
 					pr_err("%s: error in switch profile (%d)\n",
-						__func__, err);
+						__func__, ret);
 			}
 		}
 
@@ -4354,6 +4356,7 @@ int tfa_is_active_device(struct tfa_device *tfa)
 enum tfa_error tfa_dev_start(struct tfa_device *tfa,
 	int next_profile, int vstep)
 {
+	enum tfa_error ret = tfa_error_ok;
 	enum tfa98xx_error err = TFA98XX_ERROR_OK;
 	int active_profile = -1, cal_profile = -1;
 	static int tfa98xx_log_start_cnt;
@@ -4586,10 +4589,9 @@ after_setting_operating_mode:
 
 	/* Profile switching in call */
 	mutex_lock(&dev_lock);
-	err = (enum tfa98xx_error)
-		tfa_dev_switch_profile(tfa, next_profile, vstep);
+	ret = tfa_dev_switch_profile(tfa, next_profile, vstep);
 	mutex_unlock(&dev_lock);
-	if (err != TFA98XX_ERROR_OK)
+	if (ret != tfa_error_ok)
 		goto tfa_dev_start_exit;
 
 	tfa->pause_state = 0;
@@ -4604,12 +4606,16 @@ tfa_dev_start_exit:
 		tfa_set_status_flag(tfa, TFA_SET_DEVICE, -1);
 	mutex_unlock(&dev_lock);
 
-	return err;
+	if (err != TFA98XX_ERROR_OK)
+		ret = tfa_convert_error_code(err);
+
+	return ret;
 }
 
 enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 	int next_profile, int vstep)
 {
+	enum tfa_error ret = tfa_error_ok;
 	enum tfa98xx_error err = TFA98XX_ERROR_OK;
 	int active_profile = -1;
 
@@ -4629,7 +4635,7 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 
 		err = tfa_cont_write_profile(tfa, next_profile, vstep);
 		if (err != TFA98XX_ERROR_OK)
-			return err;
+			return tfa_error_other;
 	}
 
 	/* If the profile contains the .standby suffix go
@@ -4641,9 +4647,9 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 
 		pr_info("%s: skip switching dev %d for standby profile\n",
 			__func__, tfa->dev_idx);
-		err = tfa_dev_stop(tfa);
+		ret = tfa_dev_stop(tfa);
 
-		return err;
+		return ret;
 	} else if (TFA_GET_BF(tfa, PWDN) != 0) {
 		err = tfa98xx_powerdown(tfa, 0);
 	}
@@ -4655,22 +4661,26 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 		&& (vstep != tfa->vstep) && (vstep != -1)) {
 		err = tfa_cont_write_files_vstep(tfa, next_profile, vstep);
 		if (err != TFA98XX_ERROR_OK)
-			return err;
+			return tfa_error_other;
 	}
 
 	/* Always search and apply filters after a startup */
 	err = tfa_set_filters(tfa, next_profile);
 	if (err != TFA98XX_ERROR_OK)
-		return err;
+		return tfa_error_other;
 
 	tfa_dev_set_swprof(tfa, (unsigned short)next_profile);
 	tfa_dev_set_swvstep(tfa, (unsigned short)vstep);
 
-	return err;
+	if (err != TFA98XX_ERROR_OK)
+		ret = tfa_convert_error_code(err);
+
+	return ret;
 }
 
 enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 {
+	enum tfa_error ret = tfa_error_ok;
 	enum tfa98xx_error err = TFA98XX_ERROR_OK;
 	int ramp_steps = tfa->ramp_steps;
 
@@ -4679,7 +4689,7 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 
 	/* mute */
 	tfa->ramp_steps = RAMPDOWN_SHORT;
-	tfa_run_mute(tfa);
+	err = tfa_run_mute(tfa);
 	tfa->ramp_steps = ramp_steps;
 
 	/* cancel other pending wait_cal works */
@@ -4693,7 +4703,7 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 	/* powerdown CF */
 	err = tfa98xx_powerdown(tfa, 1);
 	if (err != TFA98XX_ERROR_OK)
-		return err;
+		return tfa_error_other;
 
 	/* disable I2S output on TFA1 devices without TDM */
 	err = tfa98xx_aec_output(tfa, 0);
@@ -4729,7 +4739,10 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 		tfa_reset_active_handle(tfa);
 	}
 
-	return err;
+	if (err != TFA98XX_ERROR_OK)
+		ret = tfa_convert_error_code(err);
+
+	return ret;
 }
 
 /*
@@ -5834,18 +5847,19 @@ enum tfa_error tfa_dev_mtp_set(struct tfa_device *tfa,
 	enum tfa_mtp item, int value)
 {
 	enum tfa_error err = tfa_error_ok;
+	enum tfa98xx_error ret = TFA98XX_ERROR_OK;
 
 	switch (item) {
 	case TFA_MTP_OTC:
-		err = tfa98xx_set_mtp(tfa, (uint16_t)
+		ret = tfa98xx_set_mtp(tfa, (uint16_t)
 			(value << TFA98XX_KEY2_PROTECTED_MTP0_MTPOTC_POS),
 			TFA98XX_KEY2_PROTECTED_MTP0_MTPOTC_MSK);
 		break;
 	case TFA_MTP_EX:
-		err = tfa98xx_set_mtp(tfa, (uint16_t)
+		ret = tfa98xx_set_mtp(tfa, (uint16_t)
 			(value << TFA98XX_KEY2_PROTECTED_MTP0_MTPEX_POS),
 			TFA98XX_KEY2_PROTECTED_MTP0_MTPEX_MSK);
-		if (err == tfa_error_ok) {
+		if (ret == TFA98XX_ERROR_OK) {
 			tfa->mtpex = value;
 			if (value == 0)
 				tfa->reset_mtpex = 0;
@@ -5886,6 +5900,9 @@ enum tfa_error tfa_dev_mtp_set(struct tfa_device *tfa,
 		/* wrong item */
 		break;
 	}
+
+	if (ret != TFA98XX_ERROR_OK)
+		err = tfa_error_bad_param;
 
 	if (err != tfa_error_ok)
 		pr_err("%s: error (%d) in setting MTP (item %d with %d)\n",
