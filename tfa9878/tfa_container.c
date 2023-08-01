@@ -1024,6 +1024,7 @@ int tfa_cont_get_devid(struct tfa_container *cnt, int dev_idx)
 	unsigned short devid, checkaddress;
 	int checkvalue;
 
+	/* fall through to try the patch */
 	patchdsc = tfa_cnt_get_dsc(cnt, dsc_patch, dev_idx);
 	if (!patchdsc) /* no patch for this device, assume non-i2c */
 		return 0;
@@ -1395,41 +1396,6 @@ enum tfa98xx_error tfa_cont_write_regs_prof(struct tfa_device *tfa,
 			break;
 	}
 	return err;
-}
-
-/* write patchfile in the devicelist to the target */
-enum tfa98xx_error tfa_cont_write_patch(struct tfa_device *tfa)
-{
-	enum tfa98xx_error err = TFA98XX_ERROR_OK;
-	struct tfa_device_list *dev = tfa_cont_device(tfa->cnt, tfa->dev_idx);
-	struct tfa_file_dsc *file;
-	struct tfa_patch_file *patchfile;
-	int size, i;
-
-	if (!dev)
-		return TFA98XX_ERROR_BAD_PARAMETER;
-
-	/* process the list until a patch is encountered */
-	for (i = 0; i < dev->length; i++) {
-		if (dev->list[i].type == dsc_patch) {
-			file = (struct tfa_file_dsc *)
-				(dev->list[i].offset + (uint8_t *)tfa->cnt);
-			patchfile = (struct tfa_patch_file *)&file->data;
-
-			if (tfa->verbose)
-				tfa_cont_show_header(&patchfile->hdr);
-
-			/* size is total length */
-			size = patchfile->hdr.size
-				- sizeof(struct tfa_patch_file);
-			err = tfa_dsp_patch(tfa, size,
-				(const unsigned char *)patchfile->data);
-			if (err)
-				return err;
-		}
-	}
-
-	return TFA98XX_ERROR_OK;
 }
 
 /*
@@ -2561,29 +2527,6 @@ int tfa_cont_get_cal_profile(struct tfa_device *tfa)
 	pr_info("%s: cal_prof = %d", __func__, cal_idx);
 
 	return cal_idx;
-}
-
-/*
- * Is the profile a tap profile
- */
-int tfa_cont_is_tap_profile(struct tfa_device *tfa, int prof_idx)
-{
-	char prof_name[MAX_CONTROL_NAME] = {0};
-
-	if ((tfa->dev_idx < 0) || (tfa->dev_idx >= tfa->cnt->ndev))
-		return TFA_ERROR;
-
-	strlcpy(prof_name, tfa_cont_profile_name(tfa->cnt,
-		tfa->dev_idx, prof_idx), MAX_CONTROL_NAME);
-	/* Check if next profile is tap profile */
-	if (strnstr(prof_name, ".tap", strlen(prof_name)) != NULL) {
-		pr_debug("Using Tap profile: '%s'\n",
-			tfa_cont_profile_name(tfa->cnt,
-			tfa->dev_idx, prof_idx));
-		return 1;
-	}
-
-	return 0;
 }
 
 /*

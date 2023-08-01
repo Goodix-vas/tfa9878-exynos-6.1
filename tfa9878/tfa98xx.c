@@ -95,7 +95,7 @@ MODULE_PARM_DESC(fw_name, "TFA98xx DSP firmware (container file) name.");
 
 static int trace_level;
 module_param(trace_level, int, 0444);
-MODULE_PARM_DESC(trace_level, "TFA98xx debug trace level (0=off, bits:1=verbose,2=regdmesg,3=regftrace,4=timing).");
+MODULE_PARM_DESC(trace_level, "TFA98xx debug trace level (0=off, b0=verbose,b1=regdmesg,b2=regftrace,b3=timing).");
 
 static char *dflt_prof_name = "";
 module_param(dflt_prof_name, charp, 0444);
@@ -3177,7 +3177,6 @@ retry:
 			"WR reg=0x%02x, val=0x%04x %s\n",
 			subaddress, value,
 			ret < 0 ? "Error!!" : "");
-
 	if (tfa98xx_ftrace_regs)
 		tfa98xx_trace_printk
 			("WR reg=0x%02x, val=0x%04x %s\n",
@@ -3227,7 +3226,6 @@ retry:
 			"RD reg=0x%02x, val=0x%04x %s\n",
 			subaddress, *val,
 			ret < 0 ? "Error!!" : "");
-
 	if (tfa98xx_ftrace_regs)
 		tfa98xx_trace_printk
 			("RD reg=0x%02x, val=0x%04x %s\n",
@@ -3335,7 +3333,6 @@ enum tfa98xx_error tfa98xx_read_data(struct tfa_device *tfa,
 			dev_dbg(&tfa98xx_client->dev,
 				"RD-DAT reg=0x%02x, len=%d\n",
 				reg, len);
-
 		if (tfa98xx_ftrace_regs)
 			tfa98xx_trace_printk
 				("RD-DAT reg=0x%02x, len=%d\n",
@@ -3936,7 +3933,7 @@ static void tfa98xx_interrupt(struct work_struct *work)
 	struct tfa98xx *tfa98xx;
 	struct tfa_device *tfa;
 	int irq_gpio = tfa98xx0->irq_gpio;
-	int value = 0;
+	int value0 = 0;
 
 	pr_info("%s: triggered: dev %d\n",
 		__func__, tfa98xx0->tfa->dev_idx);
@@ -3947,17 +3944,16 @@ static void tfa98xx_interrupt(struct work_struct *work)
 				tfa98xx->i2c->addr);
 			continue;
 		}
-		tfa = tfa98xx->tfa;
-		value = TFAxx_READ_REG(tfa,
-			VDDS); /* STATUS_FLAGS0 */
-		pr_info("%s: [%d] status flags: 0x%04x\n",
-			__func__, tfa->dev_idx, value);
-
-		if (irq_gpio != tfa98xx->irq_gpio)
+		if (irq_gpio != tfa98xx->irq_gpio) /* IRQ not shared */
 			continue;
 
-		pr_info("%s: status check on dev %d\n", __func__,
-			tfa->dev_idx);
+		tfa = tfa98xx->tfa;
+		value0 = TFAxx_READ_REG(tfa, VDDS);
+		pr_info("%s: [%d] status_flags: 0x%04x\n",
+			__func__, tfa->dev_idx, value0);
+
+		/* Remove sticky bit by reading it once */
+		tfa_get_noclk(tfa);
 
 		mutex_lock(&tfa98xx->dsp_lock);
 		tfa_irq_report(tfa);
@@ -4232,6 +4228,14 @@ static int _tfa98xx_mute(struct tfa98xx *tfa98xx, int mute, int stream)
 		mutex_unlock(&tfa98xx_mutex);
 
 		cancel_delayed_work_sync(&tfa98xx->monitor_work);
+
+		/* report the status if interrupt is not enabled */
+		if (tfa98xx->irq_gpio < 0) {
+			mutex_lock(&tfa98xx->dsp_lock);
+			tfaxx_status(tfa98xx->tfa);
+			mutex_unlock(&tfa98xx->dsp_lock);
+		}
+
 		_tfa98xx_stop(tfa98xx);
 	} else {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -5848,7 +5852,10 @@ int tfa98xx_write_sknt_control(int idx, int value)
 	int ret = 0;
 	int pm = 0;
 	int i, ndev, ready = 0;
-	static int data[MAX_HANDLES];
+	static int data[MAX_HANDLES] = {
+		DEFAULT_REF_TEMP, DEFAULT_REF_TEMP,
+		DEFAULT_REF_TEMP, DEFAULT_REF_TEMP
+	};
 	static int update[MAX_HANDLES];
 
 	if (tfa == NULL)
@@ -5919,7 +5926,6 @@ int tfa98xx_write_sknt_control(int idx, int value)
 			data[i] = DEFAULT_REF_TEMP;
 			continue;
 		}
-
 		if (update[i] > 0)
 			ready++;
 	}

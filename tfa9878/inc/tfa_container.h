@@ -99,13 +99,6 @@ enum tfa98xx_error tfa_cont_write_regs_prof(struct tfa_device *tfa,
 	int prof_idx);
 
 /*
- * Write a patchfile in the devicelist to the target.
- * @param tfa the device struct pointer
- * @return Tfa98xx_Error
- */
-enum tfa98xx_error tfa_cont_write_patch(struct tfa_device *tfa);
-
-/*
  * Write all  param files in the devicelist to the target.
  * @param tfa the device struct pointer
  * @return Tfa98xx_Error
@@ -160,14 +153,6 @@ int tfa_cont_get_app_name(struct tfa_device *tfa, char *name);
  * @return profile index, -2 if no calibration profile is found or -1 on error
  */
 int tfa_cont_get_cal_profile(struct tfa_device *tfa);
-
-/*
- * Is the profile a tap profile ?
- * @param tfa the device struct pointer
- * @param prof_idx the index of the profile
- * @return 1 if the profile is a tap profile or 0 if not
- */
-int tfa_cont_is_tap_profile(struct tfa_device *tfa, int prof_idx);
 
 /*
  * Is the profile a standby profile ?

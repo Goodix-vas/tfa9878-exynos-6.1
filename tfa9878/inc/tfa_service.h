@@ -37,7 +37,8 @@ extern "C" {
 /* #define TFA98XX_GIT_VERSIONS "v6.8.0+-Feb.23,2023" */
 /* #define TFA98XX_GIT_VERSIONS "v6.9.0+-Apr.24,2023" */
 /* #define TFA98XX_GIT_VERSIONS "v6.9.1+-May.18,2023" */
-#define TFA98XX_GIT_VERSIONS "v6.10.0+-Jul.04,2023"
+/* #define TFA98XX_GIT_VERSIONS "v6.10.0+-Jul.04,2023" */
+#define TFA98XX_GIT_VERSIONS "v6.11.0+-Jul.28,2023"
 
 #if !defined(TFA98XX_GIT_VERSIONS)
 #include "versions.h"
@@ -58,7 +59,8 @@ extern "C" {
 	/* #define TFA98XX_API_REV_STR "v6.8.0+-Feb.23,2023" */
 	/* #define TFA98XX_API_REV_STR "v6.9.0+-Apr.24,2023" */
 	/* #define TFA98XX_API_REV_STR "v6.9.1+-May.18,2023" */
-	#define TFA98XX_API_REV_STR "v6.10.0+-Jul.04,2023"
+	/* #define TFA98XX_API_REV_STR "v6.10.0+-Jul.04,2023" */
+	#define TFA98XX_API_REV_STR "v6.11.0+-Jul.28,2023"
 #endif
 
 #define MEMTRACK_MAX_WORDS           250
@@ -406,7 +408,6 @@ enum tfa98xx_error tfa98xx_get_mtp(struct tfa_device *tfa, uint16_t *value);
  */
 void tfa98xx_key2(struct tfa_device *tfa, int lock);
 
-int tfa_calibrate(struct tfa_device *tfa);
 void tfa98xx_set_exttemp(struct tfa_device *tfa, short ext_temp);
 short tfa98xx_get_exttemp(struct tfa_device *tfa);
 
@@ -740,28 +741,6 @@ void tfa98xx_convert_data2bytes(int num_data, const int data[],
 void tfa98xx_convert_bytes2data(int num_bytes,
 	const unsigned char bytes[], int data[]);
 
-/*
- * Read a part of the dsp memory
- * @param tfa the device struct pointer
- * @param memory_type indicator to the memory type
- * @param offset from where to start reading
- * @param length the number of bytes to read
- * @param bytes output data as unsigned char array
- */
-enum tfa98xx_error tfa98xx_dsp_get_memory(struct tfa_device *tfa,
-	int memory_type, int offset, int length, unsigned char bytes[]);
-
-/*
- * Write a value to the dsp memory
- * @param tfa the device struct pointer
- * @param memory_type indicator to the memory type
- * @param offset from where to start writing
- * @param length the number of bytes to write
- * @param value the value to write to the dsp
- */
-enum tfa98xx_error tfa98xx_dsp_set_memory(struct tfa_device *tfa,
-	int memory_type, int offset, int length, int value);
-
 enum tfa98xx_error tfa98xx_dsp_write_config(struct tfa_device *tfa,
 	int length, const unsigned char *p_config_bytes);
 enum tfa98xx_error tfa98xx_dsp_write_drc(struct tfa_device *tfa,
@@ -1073,6 +1052,7 @@ void tfa_set_query_info(struct tfa_device *tfa);
 
 int tfa_get_pga_gain(struct tfa_device *tfa);
 int tfa_set_pga_gain(struct tfa_device *tfa, uint16_t value);
+
 int tfa_get_noclk(struct tfa_device *tfa);
 
 /*

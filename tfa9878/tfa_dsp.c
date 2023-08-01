@@ -1023,88 +1023,6 @@ enum tfa98xx_error tfa98xx_init(struct tfa_device *tfa)
 	return error;
 }
 
-/********************* new tfa2 ****************************/
-/* newly added messaging for tfa2 tfa1? */
-enum tfa98xx_error tfa98xx_dsp_get_memory(struct tfa_device *tfa,
-	int memory_type, int offset, int length, unsigned char bytes[])
-{
-	enum tfa98xx_error error = TFA98XX_ERROR_OK;
-	char msg[4 * 3];
-	int nr = 0;
-
-	mutex_lock(&dsp_msg_lock);
-
-	msg[nr++] = 8;
-	msg[nr++] = MODULE_FRAMEWORK + 0x80;
-	msg[nr++] = FW_PAR_ID_GET_MEMORY;
-
-	msg[nr++] = 0;
-	msg[nr++] = 0;
-	msg[nr++] = (char)memory_type;
-
-	msg[nr++] = 0;
-	msg[nr++] = (offset >> 8) & 0xff;
-	msg[nr++] = offset & 0xff;
-
-	msg[nr++] = 0;
-	msg[nr++] = (length >> 8) & 0xff;
-	msg[nr++] = length & 0xff;
-
-	/* send msg */
-	tfa->individual_msg = 1;
-	error = dsp_msg(tfa, nr, (char *)msg);
-
-	if (error != TFA98XX_ERROR_OK) {
-		mutex_unlock(&dsp_msg_lock);
-		return error;
-	}
-
-	/* read the data from the device (length * 3 = words) */
-	error = dsp_msg_read(tfa, length * 3, bytes);
-
-	mutex_unlock(&dsp_msg_lock);
-
-	return error;
-}
-
-enum tfa98xx_error tfa98xx_dsp_set_memory(struct tfa_device *tfa,
-	int memory_type, int offset, int length, int value)
-{
-	enum tfa98xx_error error = TFA98XX_ERROR_OK;
-	int nr = 0;
-	char msg[5 * 3];
-
-	mutex_lock(&dsp_msg_lock);
-
-	msg[nr++] = 8;
-	msg[nr++] = MODULE_FRAMEWORK + 0x80;
-	msg[nr++] = FW_PAR_ID_SET_MEMORY;
-
-	msg[nr++] = 0;
-	msg[nr++] = 0;
-	msg[nr++] = (char)memory_type;
-
-	msg[nr++] = 0;
-	msg[nr++] = (offset >> 8) & 0xff;
-	msg[nr++] = offset & 0xff;
-
-	msg[nr++] = 0;
-	msg[nr++] = (length >> 8) & 0xff;
-	msg[nr++] = length & 0xff;
-
-	msg[nr++] = (value >> 16) & 0xff;
-	msg[nr++] = (value >> 8) & 0xff;
-	msg[nr++] = value & 0xff;
-
-	/* send msg */
-	tfa->individual_msg = 1;
-	error = dsp_msg(tfa, nr, (char *)msg);
-
-	mutex_unlock(&dsp_msg_lock);
-
-	return error;
-}
-
 /****************************** calibration support **************************/
 /*
  * get/set the mtp with user controllable values
@@ -1261,41 +1179,6 @@ void tfa98xx_key2(struct tfa_device *tfa, int lock)
 		reg_write(tfa, (tfa->tfa_family == 1) ? 0x40 : 0x0f, 0);
 }
 
-/*
- * clear mtpex
- * set ACS
- * start tfa
- */
-int tfa_calibrate(struct tfa_device *tfa)
-{
-	enum tfa_error ret = tfa_error_ok;
-	enum tfa98xx_error error = TFA98XX_ERROR_OK;
-
-	tfa->is_cold = 1;
-
-	/* clear mtpex */
-	ret = tfa_dev_mtp_set(tfa, TFA_MTP_EX, 0);
-	if (ret) {
-		pr_info("resetting MTPEX failed (%d)\n", ret);
-		tfa->reset_mtpex = 1; /* suspend until TFA98xx is active */
-		return (int)ret;
-	}
-
-	/* set ACS/coldboot state */
-	if (!tfa->is_probus_device) {
-		/* put DSP in reset state */
-		error = tfa98xx_dsp_reset(tfa, 1);
-
-		/* force cold boot */
-		error = tfa_run_coldboot(tfa, 1);
-		if (error)
-			pr_info("coldboot failed (%d)\n", error);
-	}
-
-	/* start tfa by playing */
-	return (int)error;
-}
-
 static short twos(short x)
 {
 	return (x < 0) ? x + 512 : x;
@@ -1448,11 +1331,91 @@ tfa98xx_set_mute(struct tfa_device *tfa, enum tfa98xx_mute mute)
 }
 
 /****************** patching ******************/
+
+/* the patch contains a header with the following
+ * IC revision register: 1 byte, 0xff means don't care
+ * XMEM address to check: 2 bytes, big endian, 0xffff means don't care
+ * XMEM value to expect: 3 bytes, big endian
+ */
+static enum tfa98xx_error
+tfa98xx_check_ic_rom_version(struct tfa_device *tfa,
+	const unsigned char patchheader[])
+{
+	enum tfa98xx_error error = TFA98XX_ERROR_OK;
+	unsigned short checkrev, revid;
+	unsigned char msb_revid, lsb_revid;
+	unsigned short checkaddress;
+	int checkvalue;
+	int value = 0;
+	int status;
+
+	lsb_revid = patchheader[0];
+	msb_revid = patchheader[5];
+	checkrev = tfa->rev & 0xff; /* only compare lower byte */
+
+	if ((lsb_revid != 0xff) && (checkrev != lsb_revid))
+		return TFA98XX_ERROR_NOT_SUPPORTED;
+
+	if ((msb_revid & 0xf) <= 0x5)
+		msb_revid = msb_revid + 0x0a;
+		/* in case the patch file contains numbers instead of a-f */
+
+	checkaddress = (patchheader[1] << 8) + patchheader[2];
+	checkvalue =
+		(patchheader[3] << 16) + (patchheader[4] << 8) + msb_revid;
+	if (checkaddress != 0xffff) {
+		/* before reading XMEM, check if we can access the DSP */
+		error = tfa98xx_dsp_system_stable(tfa, &status);
+		if (error == TFA98XX_ERROR_OK) {
+			if (!status)
+				/* DSP subsys not running */
+				error = TFA98XX_ERROR_DSP_NOT_RUNNING;
+		}
+		/* read register to check the correct ROM version */
+		if (error == TFA98XX_ERROR_OK)
+			error = mem_read(tfa, checkaddress, 1, &value);
+		if (error == TFA98XX_ERROR_OK) {
+			if (value != checkvalue) {
+				pr_err("patch file romid mismatch [0x%04x]: expected 0x%06x, actual 0x%06x\n",
+					checkaddress, value, checkvalue);
+				error = TFA98XX_ERROR_NOT_SUPPORTED;
+			}
+		}
+	} else { /* == 0xffff */
+		/* check if the revid subtype is in there */
+		if (checkvalue != 0xffffff && checkvalue != 0) {
+			revid = (msb_revid << 8) | lsb_revid; /* full revid */
+			/* full revid */
+			if (revid != tfa->rev) {
+				pr_err("container patch and HW mismatch: expected: 0x%04x, actual 0x%04x\n",
+					tfa->rev, revid);
+				return TFA98XX_ERROR_NOT_SUPPORTED;
+			}
+
+			pr_info("%s: container patch: 0x%08x\n",
+				__func__, revid);
+		}
+	}
+
+	return error;
+}
+
+#define PATCH_HEADER_LENGTH 6
 enum tfa98xx_error
 tfa_dsp_patch(struct tfa_device *tfa, int patch_length,
 	const unsigned char *patch_bytes)
 {
-	return TFA98XX_ERROR_OK;
+	enum tfa98xx_error error = TFA98XX_ERROR_OK;
+
+	if (tfa->in_use == 0)
+		return TFA98XX_ERROR_NOT_OPEN;
+
+	if (patch_length < PATCH_HEADER_LENGTH)
+		return TFA98XX_ERROR_BAD_PARAMETER;
+
+	tfa98xx_check_ic_rom_version(tfa, patch_bytes);
+
+	return error;
 }
 /****************** end patching ******************/
 
@@ -2856,11 +2819,12 @@ enum tfa98xx_error tfa_get_fw_lib_version(struct tfa_device *tfa,
 			continue;
 		}
 		if (!(token >= '0' && token <= '9')
-			&& token != '.'
+			&& token != '.' && token != '_'
 			&& !(token == 0 && num > 0))
 			continue;
 
-		if (token == '.' || token == 0) {
+		if ((token == '.' || token == '_' || token == 0)
+			&& k < 3) {
 			plib_version[k++] = num;
 			num = 0;
 			continue;
@@ -3245,11 +3209,6 @@ enum tfa98xx_error tfa_run_speaker_boost(struct tfa_device *tfa,
 			&& tfa98xx_count_active_stream(BIT_CSTREAM) == 0)
 			return err;
 	}
-
-	/* Synchonize I/V delay on 96/97 at cold start */
-	if ((tfa->tfa_family == 1)
-		&& (tfa->daimap == TFA98XX_DAI_TDM))
-		tfa->sync_iv_delay = 1;
 
 	/* cold start */
 	/* always send the SetRe25 message
@@ -5716,23 +5675,6 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa,
 					pr_debug("%s: FAIM disabled (err %d).\n",
 						__func__, ret);
 			}
-		}
-
-		/* Synchonize I/V delay on 96/97 at cold start */
-		if (tfa->sync_iv_delay) {
-			if (tfa->verbose)
-				pr_debug("%s: syncing I/V delay for %x\n",
-					__func__, (tfa->rev & 0xff));
-
-			/* wait for ACS to be cleared */
-			count = ACS_RESET_WAIT_NTRIES;
-			while ((TFA_GET_BF(tfa, ACS) == 1) &&
-				(count-- > 0))
-				msleep_interruptible(BUSLOAD_INTERVAL / 10);
-
-			tfa98xx_dsp_reset(tfa, 1);
-			tfa98xx_dsp_reset(tfa, 0);
-			tfa->sync_iv_delay = 0;
 		}
 		break;
 	case TFA_STATE_FAULT:
