@@ -3472,6 +3472,8 @@ static void tfa98xx_container_loaded
 
 	if (tfa98xx->dsp_fw_state == TFA98XX_DSP_FW_OK) {
 		pr_info("%s: Already loaded\n", __func__);
+		if (cont)
+			release_firmware(cont);
 		mutex_unlock(&probe_lock);
 		return;
 	}
