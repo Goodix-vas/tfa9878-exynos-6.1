@@ -37,7 +37,6 @@
 enum instream_state {
 	BIT_PSTREAM = 1, /* b0 */
 	BIT_CSTREAM = 2, /* b1 */
-	BIT_SAMSTREAM = 4 /* b2 */
 };
 
 /* tfa98xx: tfa_device_ops */
@@ -57,7 +56,6 @@ int tfa98xx_buffer_pool_access(int r_index,
 
 int tfa98xx_get_fssel(unsigned int rate);
 
-void tfa98xx_key2(struct tfa_device *tfa, int lock);
 void tfa2_manual_mtp_cpy(struct tfa_device *tfa,
 	uint16_t reg_row_to_keep, uint16_t reg_row_to_set, uint8_t row);
 
@@ -79,6 +77,8 @@ void tfa_reset_active_handle(struct tfa_device *tfa);
 int tfa_is_active_device(struct tfa_device *tfa);
 
 void tfa_handle_damaged_speakers(struct tfa_device *tfa);
+
+void tfa_set_spkgain(struct tfa_device *tfa);
 
 void tfa_restore_after_cal(int index, int cal_err);
 enum tfa98xx_error tfa_run_cal(int index, uint16_t *value);

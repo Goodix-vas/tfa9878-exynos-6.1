@@ -18,7 +18,6 @@ struct tfa_irq_name {
 	char *irq_name;
 };
 
-#include "tfa1_tfafieldnames.h"
 #include "tfa2_tfafieldnames_N1C.h"
 /* diffs for specific devices */
 #include "tfa9887_tfafieldnames.h"

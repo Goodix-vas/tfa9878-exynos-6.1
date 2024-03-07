@@ -99,7 +99,6 @@ struct tfa98xx {
 	unsigned int init_count;
 	int pstream;
 	int cstream;
-	int samstream;
 
 	unsigned int rate_constraint_list[TFA98XX_NUM_RATES];
 	struct snd_pcm_hw_constraint_list rate_constraint;
@@ -123,8 +122,6 @@ struct tfa98xx {
 	bool set_mtp_cal;
 	uint16_t cal_data;
 	int calibrate_done;
-	int istatus;
 };
 
 #endif /* __TFA98XX_INC__ */
-

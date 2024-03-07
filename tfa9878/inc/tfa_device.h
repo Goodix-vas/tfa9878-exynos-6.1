@@ -57,10 +57,6 @@ struct tfa_device_ops {
 		unsigned char subaddress, unsigned short *value);
 	enum tfa98xx_error (*reg_write)(struct tfa_device *tfa,
 		unsigned char subaddress, unsigned short value);
-	enum tfa98xx_error (*mem_read)(struct tfa_device *tfa,
-		unsigned int start_offset, int num_words, int *p_values);
-	enum tfa98xx_error (*mem_write)(struct tfa_device *tfa,
-		unsigned short address, int value, int memtype);
 
 	enum tfa98xx_error (*tfa_init)(struct tfa_device *tfa);
 	enum tfa98xx_error (*dsp_reset)(struct tfa_device *tfa, int state);
@@ -144,7 +140,6 @@ struct tfa_device {
 	unsigned char tfa_family;
 	enum feature_support support_drc;
 	enum feature_support support_framework;
-	enum feature_support support_saam;
 	int sw_feature_bits[2];
 	int hw_feature_bits;
 	int profile;
@@ -181,6 +176,7 @@ struct tfa_device {
 	int mute_state;
 	int pause_state;
 	int spkgain;
+	int inplev;
 	int temp;
 	int spkr_damaged; /* 0: okay, 1: damaged */
 	int is_cold;
@@ -189,8 +185,7 @@ struct tfa_device {
 	int is_configured;
 	int mtpex;
 	int reset_mtpex;
-	int stream_state; /* b0: pstream (Rx), b1: cstream (Tx), b2:SaaM */
-	int prev_samstream;
+	int stream_state; /* b0: pstream (Rx), b1: cstream (Tx) */
 	int first_after_boot;
 	int active_handle;
 	int active_count;
@@ -216,6 +211,7 @@ struct tfa_device {
 	int disable_auto_cal;
 	int dummy_cal;
 	int inchannel;
+	int stc_bypass;
 };
 
 #if defined(TFA_STEREO_NODE)

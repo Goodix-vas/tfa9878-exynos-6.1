@@ -192,13 +192,6 @@ char *tfa_cont_profile_name(struct tfa_container *cnt,
 enum tfa98xx_error tfa_cont_write_profile(struct tfa_device *tfa,
 	int prof_idx, int vstep_idx);
 
-/*
- * Specify the speaker configurations (cmd id) (Left, right, both, none)
- * @param dev_idx index of the device
- * @param configuration name string of the configuration
- */
-void tfa98xx_set_spkr_select(int dev_idx, char *configuration);
-
 enum tfa98xx_error tfa_cont_write_filterbank(struct tfa_device *tfa,
 	struct tfa_filter *filter);
 
@@ -212,10 +205,6 @@ enum tfa98xx_error tfa_cont_write_filterbank(struct tfa_device *tfa,
  */
 enum tfa98xx_error tfa_cont_write_files_prof(struct tfa_device *tfa,
 	int prof_idx, int vstep_idx);
-enum tfa98xx_error tfa_cont_write_files_vstep(struct tfa_device *tfa,
-	int prof_idx, int vstep_idx);
-enum tfa98xx_error tfa_cont_write_drc_file(struct tfa_device *tfa,
-	int size, uint8_t data[]);
 
 /*
  * Get the device list dsc from the tfaContainer
@@ -269,36 +258,6 @@ int tfa_cont_crc_check_container(struct tfa_container *cont);
  */
 struct tfa_device_list *tfa_cont_device(struct tfa_container *cnt,
 	int dev_idx);
-
-/*
- * Return the pointer to the first profile in a list from the tfaContainer
- * @param cont pointer to the tfaContainer
- * @return pointer to first profile in profile list
- */
-struct tfa_profile_list *tfa_cont_get_1st_prof_list(struct tfa_container *cont);
-
-/*
- * Return the pointer to the next profile in a list
- * @param prof is the pointer to the profile list
- * @return profile list pointer
- */
-struct tfa_profile_list *tfa_cont_next_profile(struct tfa_profile_list *prof);
-
-/*
- * Return the pointer to the first livedata in a list from the tfaContainer
- * @param cont pointer to the tfaContainer
- * @return pointer to first livedata in profile list
- */
-struct tfa_livedata_list *tfa_cont_get_1st_livedata_list
-	(struct tfa_container *cont);
-
-/*
- * Return the pointer to the next livedata in a list
- * @param livedata_idx is the pointer to the livedata list
- * @return livedata list pointer
- */
-struct tfa_livedata_list *tfa_cont_next_livedata
-	(struct tfa_livedata_list *livedata_idx);
 
 /*
  * Write a bit field
@@ -364,22 +323,6 @@ void tfa_cont_show_header(struct tfa_header *hdr);
  */
 enum tfa98xx_error tfa_run_read_bitfield(struct tfa_device *tfa,
 	struct tfa_bitfield *bf);
-
-/*
- * Get hw feature bits from container file
- * @param tfa the device struct pointer
- * @param hw_feature_register pointer to where hw features are stored
- */
-void tfa_get_hw_features_from_cnt(struct tfa_device *tfa,
-	int *hw_feature_register);
-
-/*
- * Get sw feature bits from container file
- * @param tfa the device struct pointer
- * @param sw_feature_register pointer to where sw features are stored
- */
-void tfa_get_sw_features_from_cnt(struct tfa_device *tfa,
-	int sw_feature_register[2]);
 
 /*
  * Factory trimming for the Boost converter

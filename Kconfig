@@ -1078,6 +1078,8 @@ config SND_SOC_TFA9874
 config SND_SOC_TFA9878
 	tristate "Goodix TFA9878 amplifier"
 	depends on I2C
+	help
+	  Enable support for Goodix TFA9878 smart amplifier.
 
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"

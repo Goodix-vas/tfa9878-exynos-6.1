@@ -209,8 +209,6 @@ void set_ops_defaults(struct tfa_device_ops *ops)
 	/* defaults */
 	ops->reg_read = tfa98xx_read_register16;
 	ops->reg_write = tfa98xx_write_register16;
-	ops->mem_read = tfa98xx_dsp_read_mem;
-	ops->mem_write = tfa98xx_dsp_write_mem_word;
 	if (!ipc_loaded) {
 		ops->dsp_msg = NULL;
 		ops->dsp_msg_read = NULL;

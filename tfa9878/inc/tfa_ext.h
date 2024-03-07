@@ -42,6 +42,11 @@ int tfa_ext_register(dsp_send_message_t tfa_send_message,
 	dsp_read_message_t tfa_read_message,
 	tfa_event_handler_t *tfa_event_handler);
 
+/* callback at I2C error (rw = 0: read / 1: write)*/
+typedef int (*tfa_i2c_err_handler_t)(int addr, int err, int rw, int cnt);
+
+int tfa_i2c_err_register(tfa_i2c_err_handler_t tfa_i2c_err_handler);
+
 enum tfa98xx_blackbox_id {
 	ID_MAXX_LOG = 0,
 	ID_MAXT_LOG = 1,
